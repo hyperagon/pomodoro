@@ -21,6 +21,8 @@ DEFAULT_NORMAL_BG = "black"
 DEFAULT_BREAK_BG = "red"
 DEFAULT_NORMAL_FG = "white"
 DEFAULT_BREAK_FG = "white"
+DEFAULT_LONG_BREAK_MINUTES = 15
+DEFAULT_SHORT_BREAK_MINUTES = 5
 SETTINGS_FILE = "settings.ini"
 
 class PomodoroTimer:
@@ -50,6 +52,7 @@ class PomodoroTimer:
         self.running = True
         self.paused = False
         self.break_triggered = False
+        self.session_counter = 0  # Counter for completed sessions
 
         # Mouse drag state
         self.offset_x = 0
@@ -83,6 +86,7 @@ class PomodoroTimer:
 
     def reset_timer(self):
         threading.Thread(target=self.play_sound, daemon=True).start()
+        self.session_counter += 1  # Increment session counter
         self.seconds_left = self.total_minutes * 60
         self.break_triggered = False
         self.running = True
@@ -101,6 +105,13 @@ class PomodoroTimer:
             self.label.config(text=f"{minutes:02}:{seconds:02}")
 
     def trigger_break(self):
+        # Determine break duration based on session counter
+        if self.session_counter % 4 == 0:
+            break_duration = self.long_break_minutes
+        else:
+            break_duration = self.short_break_minutes
+
+        self.seconds_left = break_duration * 60
         self.root.configure(bg=self.break_bg)
         self.label.configure(bg=self.break_bg, fg=self.break_fg)
         threading.Thread(target=self.play_sound, daemon=True).start()
@@ -157,10 +168,12 @@ class PomodoroTimer:
         temp_break_bg = self.break_bg
         temp_normal_fg = self.normal_fg
         temp_break_fg = self.break_fg
+        temp_long_break_minutes = self.long_break_minutes
+        temp_short_break_minutes = self.short_break_minutes
 
         config_win = tk.Toplevel(self.root)
         config_win.title("Pomodoro Settings")
-        config_win.geometry("300x330")
+        config_win.geometry("300x430")
         config_win.attributes('-topmost', True)
 
         # Time entries
@@ -173,6 +186,16 @@ class PomodoroTimer:
         break_entry = tk.Entry(config_win)
         break_entry.insert(0, str(temp_break_trigger))
         break_entry.pack()
+
+        tk.Label(config_win, text="Long Break Duration (min):").pack(pady=5)
+        long_break_entry = tk.Entry(config_win)
+        long_break_entry.insert(0, str(temp_long_break_minutes))
+        long_break_entry.pack()
+
+        tk.Label(config_win, text="Short Break Duration (min):").pack(pady=5)
+        short_break_entry = tk.Entry(config_win)
+        short_break_entry.insert(0, str(temp_short_break_minutes))
+        short_break_entry.pack()
 
         # Color pickers
         def choose_color(current_color):
@@ -204,9 +227,13 @@ class PomodoroTimer:
             try:
                 new_total = int(total_entry.get())
                 new_break = int(break_entry.get())
+                new_long_break = int(long_break_entry.get())
+                new_short_break = int(short_break_entry.get())
 
                 self.total_minutes = new_total
                 self.break_trigger = new_break
+                self.long_break_minutes = new_long_break
+                self.short_break_minutes = new_short_break
 
                 self.normal_bg = temp_normal_bg
                 self.break_bg = temp_break_bg
@@ -256,6 +283,8 @@ class PomodoroTimer:
             self.break_bg = config.get("colors", "break_bg", fallback=DEFAULT_BREAK_BG)
             self.normal_fg = config.get("text", "normal_fg", fallback=DEFAULT_NORMAL_FG)
             self.break_fg = config.get("text", "break_fg", fallback=DEFAULT_BREAK_FG)
+            self.long_break_minutes = int(config.get("timer", "long_break_minutes", fallback=DEFAULT_LONG_BREAK_MINUTES))
+            self.short_break_minutes = int(config.get("timer", "short_break_minutes", fallback=DEFAULT_SHORT_BREAK_MINUTES))
         else:
             # Defaults
             self.total_minutes = DEFAULT_TOTAL_MINUTES
@@ -264,6 +293,8 @@ class PomodoroTimer:
             self.break_bg = DEFAULT_BREAK_BG
             self.normal_fg = DEFAULT_NORMAL_FG
             self.break_fg = DEFAULT_BREAK_FG
+            self.long_break_minutes = DEFAULT_LONG_BREAK_MINUTES
+            self.short_break_minutes = DEFAULT_SHORT_BREAK_MINUTES
 
     def save_settings(self):
         config = configparser.ConfigParser()
@@ -277,6 +308,8 @@ class PomodoroTimer:
             config['timer'] = {}
         config['timer']['total_minutes'] = str(self.total_minutes)
         config['timer']['break_trigger'] = str(self.break_trigger)
+        config['timer']['long_break_minutes'] = str(self.long_break_minutes)
+        config['timer']['short_break_minutes'] = str(self.short_break_minutes)
 
         # Color settings
         if 'colors' not in config:
@@ -303,3 +336,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PomodoroTimer(root)
     root.mainloop()
+
