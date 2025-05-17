@@ -1,6 +1,6 @@
 # Pomodoro Timer
 ### Verzion 2
-A simple [Pomodoro (Technique) Timer](https://en.wikipedia.org/wiki/Pomodoro_Technique) that I vibe-coded with [**Qwen**](https://chat.qwen.ai/).
+A simple [Pomodoro (Technique) Timer](https://en.wikipedia.org/wiki/Pomodoro_Technique) that I vibe-coded with **Qwen**.
 
 ### Requirements
 - tkinter
