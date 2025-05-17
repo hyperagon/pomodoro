@@ -5,5 +5,6 @@ Asimple Pomodoro timer that I vibe-coded with **Qwen**.
 - tkinter (for the GUI)
 - pygame==2.6.1 (to play audio)
 
-### Setup
-Just use `pip install -r requirements.txt` then run with `python pomodoro.py`.
+### Setup and Usage
+- `pip install -r requirements.txt`
+- `python pomodoro.py`
