@@ -1,5 +1,5 @@
 # Pomodoro Timer
-Asimple Pomodoro timer that I vibe-coded with **Qwen**.
+A simple Pomodoro timer that I vibe-coded with **Qwen**.
 
 ### Requirements
 - tkinter
