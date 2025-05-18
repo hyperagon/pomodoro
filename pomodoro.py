@@ -1,5 +1,4 @@
 # pip install pygame
-# Vibe-coded with chatgpt-4o-latest-20250326
 
 import tkinter as tk
 from tkinter import simpledialog, colorchooser, messagebox
