@@ -1,5 +1,5 @@
 # pip install pygame
-# Vibe-coded with chatgpt-4o-latest-20250326
+# Vibe-coded by Hyperag⬡ns
 
 import tkinter as tk
 from tkinter import simpledialog, colorchooser, messagebox
@@ -15,14 +15,16 @@ except pygame.error as e:
     print(f"Failed to initialize sound system: {e}")
 
 # Constants
-DEFAULT_TOTAL_MINUTES = 60
-DEFAULT_BREAK_TRIGGER = 35
+DEBUG = False
+SECOND = 1000 # 1000
+DEFAULT_TOTAL_MINUTES = 25
 DEFAULT_NORMAL_BG = "black"
 DEFAULT_BREAK_BG = "red"
 DEFAULT_NORMAL_FG = "white"
 DEFAULT_BREAK_FG = "white"
-DEFAULT_LONG_BREAK_MINUTES = 15
+DEFAULT_LONG_BREAK_MINUTES = 20
 DEFAULT_SHORT_BREAK_MINUTES = 5
+DEFAULT_SESSIONS_BEFORE_LONG_BREAK = 4  # New constant for sessions before long break
 SETTINGS_FILE = "settings.ini"
 
 class PomodoroTimer:
@@ -54,6 +56,9 @@ class PomodoroTimer:
         self.break_triggered = False
         self.session_counter = 0  # Counter for completed sessions
 
+        # Timer ID for cancellation
+        self.timer_id = None
+
         # Mouse drag state
         self.offset_x = 0
         self.offset_y = 0
@@ -65,48 +70,59 @@ class PomodoroTimer:
         self.root.bind("<Button-3>", self.on_right_click)
 
         self.update_display()
-        self.root.after(1000, self.timer_tick)
+        self.timer_id = self.root.after(SECOND, self.timer_tick)
 
     def timer_tick(self):
         if self.running and not self.paused:
-            self.seconds_left -= 1
-            self.update_display()
+            if self.seconds_left > 0:
+                self.seconds_left -= 1
+                self.update_display()
+            else:
+                threading.Thread(target=self.play_sound, daemon=True).start()
+                
+                if self.break_triggered:
+                    if DEBUG:
+                        print("timer_tick - reset", self.session_counter)
+                    self.reset_timer()  # Reset the timer if it's a break
+                else:
+                    self.session_counter += 1  # Increment session counter
+                    if DEBUG:
+                        print("timer_tick - break", self.session_counter)
+                    self.trigger_break()  # Trigger break if it's not a break
 
-            if self.seconds_left == self.break_trigger * 60 and not self.break_triggered:
-                self.break_triggered = True
-                self.trigger_break()
-
-            if self.seconds_left <= 0:
-                self.seconds_left = 0
-                self.running = False
-                self.root.after(1000, self.reset_timer)
-                return
-
-        self.root.after(1000, self.timer_tick)
+        # Schedule the next tick
+        self.timer_id = self.root.after(SECOND, self.timer_tick)
 
     def reset_timer(self):
-        threading.Thread(target=self.play_sound, daemon=True).start()
-        self.session_counter += 1  # Increment session counter
         self.seconds_left = self.total_minutes * 60
-        self.break_triggered = False
+        self.break_triggered = False  # Reset the break trigger
         self.running = True
         self.paused = False
         self.root.configure(bg=self.normal_bg)
         self.label.configure(bg=self.normal_bg, fg=self.normal_fg)
         self.update_display()
-        self.root.after(1000, self.timer_tick)
+        
+        # Cancel the previous timer if it exists
+        if self.timer_id is not None:
+            self.root.after_cancel(self.timer_id)
+            self.timer_id = None  # Reset the timer ID
+
+        # Schedule the next tick
+        self.timer_id = self.root.after(SECOND, self.timer_tick)
 
     def update_display(self):
         minutes = self.seconds_left // 60
         seconds = self.seconds_left % 60
         if self.paused:
-            self.label.config(text=f"|| ({minutes:02}:{seconds:02})")
+            self.label.config(text=f"|| {minutes:02}:{seconds:02}")
         else:
             self.label.config(text=f"{minutes:02}:{seconds:02}")
 
     def trigger_break(self):
+        self.break_triggered = True  # Correctly set the instance variable
+
         # Determine break duration based on session counter
-        if self.session_counter % 4 == 0:
+        if self.session_counter % self.sessions_before_long_break == 0:
             break_duration = self.long_break_minutes
         else:
             break_duration = self.short_break_minutes
@@ -114,8 +130,7 @@ class PomodoroTimer:
         self.seconds_left = break_duration * 60
         self.root.configure(bg=self.break_bg)
         self.label.configure(bg=self.break_bg, fg=self.break_fg)
-        threading.Thread(target=self.play_sound, daemon=True).start()
-
+        
     def play_sound(self):
         try:
             if os.path.exists("4.wav"):
@@ -163,17 +178,16 @@ class PomodoroTimer:
     def open_config_window(self):
         # Store current values
         temp_total_minutes = self.total_minutes
-        temp_break_trigger = self.break_trigger
         temp_normal_bg = self.normal_bg
         temp_break_bg = self.break_bg
         temp_normal_fg = self.normal_fg
         temp_break_fg = self.break_fg
         temp_long_break_minutes = self.long_break_minutes
         temp_short_break_minutes = self.short_break_minutes
+        temp_sessions_before_long_break = self.sessions_before_long_break  # New variable
 
         config_win = tk.Toplevel(self.root)
         config_win.title("Pomodoro Settings")
-        config_win.geometry("300x430")
         config_win.attributes('-topmost', True)
 
         # Time entries
@@ -181,11 +195,6 @@ class PomodoroTimer:
         total_entry = tk.Entry(config_win)
         total_entry.insert(0, str(temp_total_minutes))
         total_entry.pack()
-
-        tk.Label(config_win, text="Break Trigger Time (min):").pack(pady=5)
-        break_entry = tk.Entry(config_win)
-        break_entry.insert(0, str(temp_break_trigger))
-        break_entry.pack()
 
         tk.Label(config_win, text="Long Break Duration (min):").pack(pady=5)
         long_break_entry = tk.Entry(config_win)
@@ -196,6 +205,11 @@ class PomodoroTimer:
         short_break_entry = tk.Entry(config_win)
         short_break_entry.insert(0, str(temp_short_break_minutes))
         short_break_entry.pack()
+
+        tk.Label(config_win, text="Sessions Before Long Break:").pack(pady=5)  # New label
+        sessions_entry = tk.Entry(config_win)
+        sessions_entry.insert(0, str(temp_sessions_before_long_break))  # New entry
+        sessions_entry.pack()
 
         # Color pickers
         def choose_color(current_color):
@@ -226,14 +240,14 @@ class PomodoroTimer:
         def save_and_apply():
             try:
                 new_total = int(total_entry.get())
-                new_break = int(break_entry.get())
                 new_long_break = int(long_break_entry.get())
                 new_short_break = int(short_break_entry.get())
+                new_sessions_before_long_break = int(sessions_entry.get())  # New input
 
                 self.total_minutes = new_total
-                self.break_trigger = new_break
                 self.long_break_minutes = new_long_break
                 self.short_break_minutes = new_short_break
+                self.sessions_before_long_break = new_sessions_before_long_break  # Update new parameter
 
                 self.normal_bg = temp_normal_bg
                 self.break_bg = temp_break_bg
@@ -255,6 +269,9 @@ class PomodoroTimer:
                 messagebox.showerror("Invalid input", "Please enter valid integer values.")
 
         tk.Button(config_win, text="Save and Apply", command=save_and_apply).pack(pady=10)
+
+        # Cancel button to close the settings window without saving
+        tk.Button(config_win, text="Cancel", command=config_win.destroy).pack(pady=5)
 
     def load_window_position(self):
         config = configparser.ConfigParser()
@@ -278,7 +295,8 @@ class PomodoroTimer:
         if os.path.exists(SETTINGS_FILE):
             config.read(SETTINGS_FILE)
             self.total_minutes = int(config.get("timer", "total_minutes", fallback=DEFAULT_TOTAL_MINUTES))
-            self.break_trigger = int(config.get("timer", "break_trigger", fallback=DEFAULT_BREAK_TRIGGER))
+
+            self.sessions_before_long_break = int(config.get("timer", "sessions_before_long_break", fallback=DEFAULT_SESSIONS_BEFORE_LONG_BREAK))  # Load new parameter
             self.normal_bg = config.get("colors", "normal_bg", fallback=DEFAULT_NORMAL_BG)
             self.break_bg = config.get("colors", "break_bg", fallback=DEFAULT_BREAK_BG)
             self.normal_fg = config.get("text", "normal_fg", fallback=DEFAULT_NORMAL_FG)
@@ -288,7 +306,7 @@ class PomodoroTimer:
         else:
             # Defaults
             self.total_minutes = DEFAULT_TOTAL_MINUTES
-            self.break_trigger = DEFAULT_BREAK_TRIGGER
+            self.sessions_before_long_break = DEFAULT_SESSIONS_BEFORE_LONG_BREAK  # Set default for new parameter
             self.normal_bg = DEFAULT_NORMAL_BG
             self.break_bg = DEFAULT_BREAK_BG
             self.normal_fg = DEFAULT_NORMAL_FG
@@ -307,7 +325,7 @@ class PomodoroTimer:
         if 'timer' not in config:
             config['timer'] = {}
         config['timer']['total_minutes'] = str(self.total_minutes)
-        config['timer']['break_trigger'] = str(self.break_trigger)
+        config['timer']['sessions_before_long_break'] = str(self.sessions_before_long_break)  # Save new parameter
         config['timer']['long_break_minutes'] = str(self.long_break_minutes)
         config['timer']['short_break_minutes'] = str(self.short_break_minutes)
 
@@ -336,4 +354,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = PomodoroTimer(root)
     root.mainloop()
-
