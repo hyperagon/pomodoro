@@ -1,6 +1,7 @@
 # Pomodoro Timer
 ### Verzion 2
 A simple [Pomodoro (Technique) Timer](https://en.wikipedia.org/wiki/Pomodoro_Technique) that I vibe-coded with **Qwen**.
+Now with debug constants, SECOND and DEBUG.
 
 ### Requirements
 - tkinter
