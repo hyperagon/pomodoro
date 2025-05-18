@@ -70,6 +70,13 @@ class PomodoroTimer:
         self.root.bind("<Button-3>", self.on_right_click)
 
         self.update_display()
+
+        # Cancel the previous timer if it exists
+        if self.timer_id is not None:
+            self.root.after_cancel(self.timer_id)
+            self.timer_id = None  # Reset the timer ID
+        
+        # Schedule the next tick
         self.timer_id = self.root.after(SECOND, self.timer_tick)
 
     def timer_tick(self):
@@ -89,8 +96,12 @@ class PomodoroTimer:
                     if DEBUG:
                         print("timer_tick - break", self.session_counter)
                     self.trigger_break()  # Trigger break if it's not a break
+        # Cancel the previous timer if it exists
+        if self.timer_id is not None:
+            self.root.after_cancel(self.timer_id)
+            self.timer_id = None  # Reset the timer ID
 
-        # Schedule the next tick
+        # Schedule the next tick            
         self.timer_id = self.root.after(SECOND, self.timer_tick)
 
     def reset_timer(self):
@@ -130,6 +141,7 @@ class PomodoroTimer:
         self.seconds_left = break_duration * 60
         self.root.configure(bg=self.break_bg)
         self.label.configure(bg=self.break_bg, fg=self.break_fg)
+        self.update_display()
         
     def play_sound(self):
         try:
