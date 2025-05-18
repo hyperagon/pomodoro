@@ -1,5 +1,5 @@
 # pip install pygame
-# Vibe-coded by Hyperag⬡ns
+# Vibe-coded by Hyperag⬡n
 
 import tkinter as tk
 from tkinter import simpledialog, colorchooser, messagebox
